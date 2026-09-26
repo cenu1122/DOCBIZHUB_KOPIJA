@@ -1,0 +1,80 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+
+const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY') || '';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  // Obrada CORS zahtjeva
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const { poruka, jezik, nivo } = await req.json();
+
+    // 1. Autorizacija korisnika preko Supabase zaglavlja
+    const authHeader = req.headers.get('Authorization');
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // SYSTEM PROMPT - Instrukcije za Groq AI
+    const systemPrompt = `
+Ti si prijateljski AI sagovornik i profesor koji pomaže korisniku da nauči jezik: ${jezik} (Nivo znanja: ${nivo}).
+
+Tvoja pravila ponašanja:
+1. Odgovaraj ISKLJUČIVO na jeziku koji korisnik uči (${jezik}).
+2. Prilagodi složenost vokabulara nivou (${nivo}).
+3. Budi prirodan sagovornik: odgovori na korisnikovo pitanje ili komentar.
+4. Ako korisnik napravi veću gramatičku grešku, na kraju odgovora u novom redu daj KRATKU i blagu ispravku u zagradi na Bosanskom jeziku.
+5. UVIJEK završi svoj odgovor novim pitanjem ili predlogom nove teme kako bi razgovor nastavio teći!
+`;
+
+    // 2. Poziv prema Groq API-ju sa novim aktivnim modelom
+    const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-120b',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: poruka }
+        ],
+        temperature: 0.7,
+        max_tokens: 500,
+      }),
+    });
+
+    const groqData = await groqResponse.json();
+    const aiOdgovor = groqData.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+
+    // 3. Vraćamo AI odgovor nazad na frontend
+    return new Response(
+      JSON.stringify({ 
+        odgovor: aiOdgovor,
+        status: 'success' 
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
+      }
+    );
+
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400 
+      }
+    );
+  }
+});

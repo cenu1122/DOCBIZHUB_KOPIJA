@@ -55,13 +55,16 @@
         
         #adminNotificationOverlay{display:none;position:fixed;inset:0;width:100vw;height:100vh;background:rgba(0,0,0,.92);z-index:999999;align-items:center;justify-content:center;padding:30px}
         #adminNotificationOverlay.active{display:flex}
-        #adminNotificationBox{width:min(900px,95vw);max-height:90vh;overflow-y:auto;background:#fff;border-radius:25px;padding:40px;text-align:center;box-shadow:0 0 60px rgba(255,255,255,.25);border-top:10px solid #d90429}
+        #adminNotificationBox{width:min(900px,95vw);max-height:90vh;overflow-y:auto;background:#fff;border-radius:25px;padding:40px;text-align:center;box-shadow:0 0 60px rgba(255,255,255,.25);border-top:10px solid #d90429;animation:adminNotificationPulse 1s ease-in-out infinite alternate}
+        @keyframes adminNotificationPulse{from{transform:scale(1)}to{transform:scale(1.015)}}
         #adminNotificationBox h1{color:#d90429;font-size:clamp(2rem,5vw,4rem);margin-bottom:15px}
         .admin-notification-type{font-size:1.5rem;font-weight:bold;color:#2b2d42;margin-bottom:25px}
         .admin-notification-data{background:#f4f4f9;border-radius:15px;padding:20px;text-align:left;margin-bottom:25px}
         .admin-notification-row{padding:12px 5px;border-bottom:1px solid #ddd;font-size:1.1rem;word-break:break-word}
+        .admin-notification-row:last-child{border-bottom:none}
         .admin-notification-label{font-weight:bold;color:#2b2d42;margin-right:8px}
-        #adminNotificationConfirm{background:#d90429;color:#fff;border:none;border-radius:12px;padding:16px 45px;font-size:1.2rem;font-weight:bold;cursor:pointer}
+        #adminNotificationConfirm{background:#d90429;color:#fff;border:none;border-radius:12px;padding:16px 45px;font-size:1.2rem;font-weight:bold;cursor:pointer;transition:background .2s,transform .2s}
+        #adminNotificationConfirm:hover{background:#b50322;transform:scale(1.03)}
         
         #forumToast{display:none;position:fixed;bottom:20px;right:20px;background:#2b2d42;color:#fff;padding:15px 20px;border-radius:12px;z-index:99999;box-shadow:0 5px 20px rgba(0,0,0,0.2);border-left:5px solid #3742fa;max-width:320px;flex-direction:column;gap:4px}
         
@@ -246,7 +249,6 @@
             }
         }
 
-        // Sakrij rezultate pretrage na klik van
         window.addEventListener('click', function(e) {
             if (!e.target.closest('.search-container') && !e.target.closest('#searchResults')) {
                 document.getElementById('searchResults').style.display = 'none';
@@ -286,8 +288,94 @@
             window.location.href = 'index.html';
         }
 
+        let adminNotificationChannel = null;
+        let adminNotificationIsAdmin = false;
+
+        async function pokreniAdminNotifikacije() {
+            if (!_supabase) return;
+            try {
+                const { data: { user }, error } = await _supabase.auth.getUser();
+                if (error || !user || !user.email) return;
+                if (user.email.toLowerCase() !== 'admin@gmail.com') return;
+                adminNotificationIsAdmin = true;
+                if (adminNotificationChannel) {
+                    await _supabase.removeChannel(adminNotificationChannel);
+                }
+                adminNotificationChannel = _supabase.channel('admin-notifikacije-kanal')
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'NOTIFIKACIJE' }, function(payload) {
+                        prikaziAdminNotifikaciju(payload.new);
+                    })
+                    .subscribe();
+            } catch (err) {
+                console.error('Greška admin notifikacija:', err);
+            }
+        }
+
+        function prikaziAdminNotifikaciju(n) {
+            if (!adminNotificationIsAdmin) return;
+            document.getElementById('adminNotificationType').textContent = n.VRSTA_NOTIFIKACIJE || 'NOVI UNOS';
+            document.getElementById('adminNotificationIme').textContent = n.IME || '-';
+            document.getElementById('adminNotificationFirma').textContent = n.FIRMA || '-';
+            document.getElementById('adminNotificationTelefon').textContent = n.TELEFON || '-';
+            document.getElementById('adminNotificationEmail').textContent = n.EMAIL || '-';
+            document.getElementById('adminNotificationLink').textContent = n.LINK_STRANICE || '-';
+            document.getElementById('adminNotificationOverlay').classList.add('active');
+            pustiAdminAlarm();
+        }
+
+        function zatvoriAdminNotifikaciju() {
+            document.getElementById('adminNotificationOverlay').classList.remove('active');
+        }
+
+        function pokreniForumNotifikacije() {
+            if (!_supabase) return;
+            _supabase.channel('forum-global-kanal')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'FORUM_POSTOVI' }, function(payload) {
+                    prikaziForumToast("🗣️ Nova tema na forumu!", "Kreirana je nova diskusija. Pogledajte detalje.");
+                })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'FORUM_KOMENTARI' }, function(payload) {
+                    prikaziForumToast("💬 Novi komentar", "Neko je ostavio novi komentar na forumu.");
+                })
+                .subscribe();
+        }
+
+        function prikaziForumToast(naslov, poruka) {
+            const toast = document.getElementById('forumToast');
+            document.getElementById('forumToastTitle').innerText = naslov;
+            document.getElementById('forumToastBody').innerText = poruka;
+            toast.style.display = 'flex';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 6000);
+        }
+
+        function pustiAdminAlarm() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.setValueAtTime(660, ctx.currentTime + 0.2);
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.001, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.6);
+            } catch (e) {
+                console.warn('Alarm nije pokrenut:', e);
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             ucitajProfilKorisnika();
+            pokreniAdminNotifikacije();
+            pokreniForumNotifikacije();
         });
     </script>
 </body>

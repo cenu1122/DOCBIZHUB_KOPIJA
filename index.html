@@ -2938,3 +2938,1999 @@ footer{
 </style>
 
 </head>
+<!-- =========================================================
+     DIO 3 / 3
+     JAVASCRIPT
+     ========================================================= -->
+
+
+<!-- =========================================================
+     GOOGLE TRANSLATE
+     ========================================================= -->
+
+<script>
+
+function googleTranslateElementInit(){
+
+    new google.translate.TranslateElement({
+
+        pageLanguage:'bs',
+
+        layout:
+            google.translate.TranslateElement.InlineLayout.SIMPLE,
+
+        autoDisplay:false
+
+    }, 'google_translate_element');
+
+}
+
+</script>
+
+<script
+    src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit">
+</script>
+
+
+<!-- =========================================================
+     SUPABASE
+     ========================================================= -->
+
+<script>
+
+const SUPABASE_URL =
+    'https://uduwpvdjmanrgpumdrfh.supabase.co';
+
+const SUPABASE_ANON_KEY =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkdXdwZGptYW5yZ3B1bWRyZmgiLCJyb2xlIjoiYW5vbiJ9';
+
+
+let _supabase =
+    typeof supabase !== 'undefined'
+        ? supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_ANON_KEY
+        )
+        : null;
+
+
+const SITE_SEARCH_FUNCTION_URL =
+    'https://uduwpvdjmanrgpumdrfh.supabase.co/functions/v1/site-search';
+
+
+const GITHUB_OWNER =
+    'cenu1122';
+
+const GITHUB_REPO =
+    'LANGLOVE.SITE';
+
+const GITHUB_BRANCH =
+    'main';
+
+const GITHUB_TREE_URL =
+    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/trees/${GITHUB_BRANCH}?recursive=1`;
+
+
+/* =========================================================
+   PROFIL KORISNIKA
+   ========================================================= */
+
+async function ucitajProfilKorisnika(){
+
+    if(!_supabase){
+        return;
+    }
+
+    try{
+
+        const {
+            data:{
+                user
+            }
+        } =
+        await _supabase.auth.getUser();
+
+
+        if(user && user.email){
+
+            const email =
+                user.email;
+
+
+            const emailElement =
+                document.getElementById('lblUserEmail');
+
+
+            if(emailElement){
+
+                emailElement.innerText =
+                    `👤 ${email}`;
+
+            }
+
+
+            if(
+                email.toLowerCase()
+                ===
+                'admin@gmail.com'
+            ){
+
+                document
+                    .querySelectorAll('.admin-only')
+                    .forEach(
+                        el =>
+                            el.style.display='flex'
+                    );
+
+            }
+
+
+            const {
+                data:profile
+            } =
+            await _supabase
+                .from('POSAO_KORISNICI')
+                .select('IME')
+                .or(
+                    `USER.eq.${user.id},MAIL.eq.${email},EMAIL.eq.${email}`
+                )
+                .maybeSingle();
+
+
+            if(
+                profile
+                &&
+                profile.IME
+            ){
+
+                const welcomeElement =
+                    document.getElementById(
+                        'txtSubWelcome'
+                    );
+
+
+                if(welcomeElement){
+
+                    welcomeElement.innerText =
+                        `Dobrodošli nazad, ${profile.IME}! 👋`;
+
+                }
+
+            }
+
+        }else{
+
+            const emailElement =
+                document.getElementById(
+                    'lblUserEmail'
+                );
+
+
+            if(emailElement){
+
+                emailElement.innerText =
+                    '👤 Gost / Nije prijavljen';
+
+            }
+
+        }
+
+    }catch(error){
+
+        console.warn(
+            'Greška pri dohvaćanju korisnika:',
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   ODJAVA
+   ========================================================= */
+
+async function odjava(){
+
+    try{
+
+        if(_supabase){
+
+            await _supabase.auth.signOut();
+
+        }
+
+    }catch(error){
+
+        console.warn(
+            'Greška pri odjavi:',
+            error
+        );
+
+    }
+
+    window.location.href =
+        'index.html';
+
+}
+
+
+/* =========================================================
+   DOCS MODAL
+   ========================================================= */
+
+function otvoriModalDokumenata(){
+
+    const modal =
+        document.getElementById(
+            'DOCSModal'
+        );
+
+
+    if(modal){
+
+        modal.classList.add(
+            'active'
+        );
+
+    }
+
+}
+
+
+function zatvoriModalDokumenata(){
+
+    const modal =
+        document.getElementById(
+            'DOCSModal'
+        );
+
+
+    if(modal){
+
+        modal.classList.remove(
+            'active'
+        );
+
+    }
+
+}
+
+
+window.addEventListener(
+    'click',
+    function(event){
+
+        const modal =
+            document.getElementById(
+                'DOCSModal'
+            );
+
+
+        if(
+            modal
+            &&
+            event.target === modal
+        ){
+
+            zatvoriModalDokumenata();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   GLOBALNA PRETRAGA
+   ========================================================= */
+
+function postaviBrzuPretragu(
+    vrijednost
+){
+
+    const input =
+        document.getElementById(
+            'globalSearchInput'
+        );
+
+
+    if(!input){
+        return;
+    }
+
+
+    input.value =
+        vrijednost;
+
+
+    pokreniGlobalnuPretragu();
+
+}
+
+
+function escapeHtml(
+    text
+){
+
+    const div =
+        document.createElement(
+            'div'
+        );
+
+
+    div.textContent =
+        String(text || '');
+
+
+    return div.innerHTML;
+
+}
+
+
+async function pokreniGlobalnuPretragu(){
+
+    const input =
+        document.getElementById(
+            'globalSearchInput'
+        );
+
+
+    const status =
+        document.getElementById(
+            'searchStatus'
+        );
+
+
+    const results =
+        document.getElementById(
+            'searchResults'
+        );
+
+
+    if(
+        !input
+        ||
+        !status
+        ||
+        !results
+    ){
+
+        return;
+
+    }
+
+
+    const query =
+        input.value.trim();
+
+
+    if(!query){
+
+        status.innerText =
+            'Unesite pojam za pretragu.';
+
+        results.style.display =
+            'none';
+
+        results.innerHTML =
+            '';
+
+        return;
+
+    }
+
+
+    status.innerText =
+        '🔎 Pretražujem...';
+
+
+    results.style.display =
+        'none';
+
+    results.innerHTML =
+        '';
+
+
+    try{
+
+        const response =
+            await fetch(
+                SITE_SEARCH_FUNCTION_URL,
+                {
+
+                    method:'POST',
+
+                    headers:{
+                        'Content-Type':
+                            'application/json'
+                    },
+
+                    body:JSON.stringify({
+                        query:query
+                    })
+
+                }
+            );
+
+
+        let data =
+            null;
+
+
+        try{
+
+            data =
+                await response.json();
+
+        }catch(
+            jsonError
+        ){
+
+            console.warn(
+                'Search JSON error:',
+                jsonError
+            );
+
+        }
+
+
+        const allResults =
+            [];
+
+
+        if(
+            data
+            &&
+            Array.isArray(
+                data.results
+            )
+        ){
+
+            data.results.forEach(
+                item =>
+                    allResults.push(item)
+            );
+
+        }
+
+
+        /* =====================================================
+           GITHUB TREE
+           ===================================================== */
+
+        try{
+
+            const githubResponse =
+                await fetch(
+                    GITHUB_TREE_URL
+                );
+
+
+            if(
+                githubResponse.ok
+            ){
+
+                const githubData =
+                    await githubResponse.json();
+
+
+                if(
+                    githubData
+                    &&
+                    Array.isArray(
+                        githubData.tree
+                    )
+                ){
+
+                    const lowerQuery =
+                        query.toLowerCase();
+
+
+                    githubData.tree
+                        .filter(
+                            item =>
+                                item
+                                &&
+                                item.path
+                                &&
+                                item.path
+                                    .toLowerCase()
+                                    .includes(
+                                        lowerQuery
+                                    )
+                        )
+                        .slice(
+                            0,
+                            30
+                        )
+                        .forEach(
+                            item => {
+
+                                allResults.push({
+
+                                    title:
+                                        item.path,
+
+                                    description:
+                                        'GitHub resurs',
+
+                                    url:
+                                        `https://cenu1122.github.io/LANGLOVE.SITE/${item.path}`,
+
+                                    source:
+                                        'GitHub',
+
+                                    icon:
+                                        '📁'
+
+                                });
+
+                            }
+                        );
+
+                }
+
+            }
+
+        }catch(
+            githubError
+        ){
+
+            console.warn(
+                'GitHub search error:',
+                githubError
+            );
+
+        }
+
+
+        /* =====================================================
+           DEDUPLICATION
+           ===================================================== */
+
+        const unique =
+            [];
+
+
+        const seen =
+            new Set();
+
+
+        allResults.forEach(
+            item => {
+
+                if(!item){
+                    return;
+                }
+
+
+                const title =
+                    String(
+                        item.title
+                        ||
+                        item.name
+                        ||
+                        ''
+                    );
+
+
+                const url =
+                    String(
+                        item.url
+                        ||
+                        item.href
+                        ||
+                        ''
+                    );
+
+
+                const key =
+                    `${title.toLowerCase()}|${url}`;
+
+
+                if(
+                    !seen.has(key)
+                ){
+
+                    seen.add(key);
+
+                    unique.push(
+                        item
+                    );
+
+                }
+
+            }
+        );
+
+
+        if(
+            unique.length === 0
+        ){
+
+            status.innerText =
+                `Nema rezultata za "${query}".`;
+
+            results.style.display =
+                'none';
+
+            return;
+
+        }
+
+
+        status.innerText =
+            `Pronađeno rezultata: ${unique.length}`;
+
+
+        results.innerHTML =
+            unique
+                .slice(
+                    0,
+                    50
+                )
+                .map(
+                    item => {
+
+                        const title =
+                            escapeHtml(
+                                item.title
+                                ||
+                                item.name
+                                ||
+                                'Rezultat'
+                            );
+
+
+                        const description =
+                            escapeHtml(
+                                item.description
+                                ||
+                                ''
+                            );
+
+
+                        const source =
+                            escapeHtml(
+                                item.source
+                                ||
+                                'DocBizHub'
+                            );
+
+
+                        const icon =
+                            escapeHtml(
+                                item.icon
+                                ||
+                                '🔎'
+                            );
+
+
+                        const url =
+                            String(
+                                item.url
+                                ||
+                                item.href
+                                ||
+                                '#'
+                            );
+
+
+                        return `
+
+                            <a
+                                class="search-result"
+                                href="${url}">
+
+                                <div class="result-left">
+
+                                    <div class="result-icon">
+                                        ${icon}
+                                    </div>
+
+                                    <div>
+
+                                        <div class="result-title">
+                                            ${title}
+                                        </div>
+
+                                        <div class="result-description">
+                                            ${description}
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                                <div class="result-source">
+                                    ${source}
+                                </div>
+
+                            </a>
+
+                        `;
+
+                    }
+                )
+                .join('');
+
+
+        results.style.display =
+            'flex';
+
+
+    }catch(error){
+
+        console.error(
+            'Global search error:',
+            error
+        );
+
+
+        status.innerText =
+            'Greška pri pretrazi. Pokušajte ponovo.';
+
+        results.style.display =
+            'none';
+
+    }
+
+}
+
+
+document.addEventListener(
+    'keydown',
+    function(event){
+
+        const input =
+            document.getElementById(
+                'globalSearchInput'
+            );
+
+
+        if(
+            input
+            &&
+            event.target === input
+            &&
+            event.key === 'Enter'
+        ){
+
+            event.preventDefault();
+
+            pokreniGlobalnuPretragu();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   ADMIN REALTIME NOTIFICATIONS
+   ========================================================= */
+
+let adminNotificationChannel =
+    null;
+
+
+async function pokreniAdminNotifikacije(){
+
+    if(!_supabase){
+        return;
+    }
+
+
+    try{
+
+        const {
+            data:{
+                user
+            }
+        } =
+        await _supabase.auth.getUser();
+
+
+        if(
+            !user
+            ||
+            !user.email
+            ||
+            user.email.toLowerCase()
+                !==
+                'admin@gmail.com'
+        ){
+
+            return;
+
+        }
+
+
+        adminNotificationChannel =
+            _supabase
+                .channel(
+                    'admin-notifikacije-kanal'
+                )
+                .on(
+
+                    'postgres_changes',
+
+                    {
+                        event:'INSERT',
+                        schema:'public',
+                        table:'NOTIFIKACIJE'
+                    },
+
+                    function(payload){
+
+                        prikaziAdminObavijest(
+                            payload.new
+                        );
+
+                    }
+
+                )
+                .subscribe();
+
+    }catch(error){
+
+        console.warn(
+            'Admin realtime error:',
+            error
+        );
+
+    }
+
+}
+
+
+function prikaziAdminObavijest(
+    data
+){
+
+    const overlay =
+        document.getElementById(
+            'adminNotificationOverlay'
+        );
+
+
+    const type =
+        document.getElementById(
+            'adminNotificationType'
+        );
+
+
+    const box =
+        document.getElementById(
+            'adminNotificationData'
+        );
+
+
+    if(!overlay){
+        return;
+    }
+
+
+    if(type){
+
+        type.innerText =
+            data
+            &&
+            (
+                data.TYPE
+                ||
+                data.TIP
+                ||
+                data.type
+                ||
+                'Nova obavijest'
+            );
+
+    }
+
+
+    if(box){
+
+        const rows =
+            [];
+
+
+        if(data){
+
+            Object.keys(data)
+                .forEach(
+                    key => {
+
+                        rows.push(`
+
+                            <div class="admin-notification-row">
+
+                                <span class="admin-notification-label">
+                                    ${escapeHtml(key)}:
+                                </span>
+
+                                ${escapeHtml(
+                                    data[key]
+                                )}
+
+                            </div>
+
+                        `);
+
+                    }
+                );
+
+        }
+
+
+        box.innerHTML =
+            rows.join('');
+
+    }
+
+
+    overlay.classList.add(
+        'active'
+    );
+
+
+    try{
+
+        const audio =
+            new Audio(
+                'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA='
+            );
+
+
+        audio.play().catch(
+            () => {}
+        );
+
+    }catch(
+        audioError
+    ){
+
+        console.warn(
+            audioError
+        );
+
+    }
+
+}
+
+
+function zatvoriAdminObavijest(){
+
+    const overlay =
+        document.getElementById(
+            'adminNotificationOverlay'
+        );
+
+
+    if(overlay){
+
+        overlay.classList.remove(
+            'active'
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   FORUM REALTIME
+   ========================================================= */
+
+let forumNotificationChannel =
+    null;
+
+
+function prikaziForumToast(
+    title,
+    text
+){
+
+    const toast =
+        document.getElementById(
+            'forumToast'
+        );
+
+
+    const titleElement =
+        document.getElementById(
+            'forumToastTitle'
+        );
+
+
+    const textElement =
+        document.getElementById(
+            'forumToastText'
+        );
+
+
+    if(!toast){
+        return;
+    }
+
+
+    if(titleElement){
+
+        titleElement.innerText =
+            title
+            ||
+            '🔔 Nova aktivnost';
+
+    }
+
+
+    if(textElement){
+
+        textElement.innerText =
+            text
+            ||
+            'Nova aktivnost na forumu.';
+
+    }
+
+
+    toast.style.display =
+        'flex';
+
+
+    clearTimeout(
+        window.__docbizForumToastTimer
+    );
+
+
+    window.__docbizForumToastTimer =
+        setTimeout(
+            function(){
+
+                toast.style.display =
+                    'none';
+
+            },
+            6000
+        );
+
+}
+
+
+async function pokreniForumNotifikacije(){
+
+    if(!_supabase){
+        return;
+    }
+
+
+    try{
+
+        forumNotificationChannel =
+            _supabase
+                .channel(
+                    'forum-global-kanal'
+                )
+                .on(
+
+                    'postgres_changes',
+
+                    {
+                        event:'INSERT',
+                        schema:'public',
+                        table:'FORUM_POSTOVI'
+                    },
+
+                    function(payload){
+
+                        prikaziForumToast(
+                            '🗣️ Nova tema',
+                            'Objavljena je nova tema na forumu.'
+                        );
+
+                    }
+
+                )
+                .on(
+
+                    'postgres_changes',
+
+                    {
+                        event:'INSERT',
+                        schema:'public',
+                        table:'FORUM_KOMENTARI'
+                    },
+
+                    function(payload){
+
+                        prikaziForumToast(
+                            '💬 Novi komentar',
+                            'Objavljen je novi komentar na forumu.'
+                        );
+
+                    }
+
+                )
+                .subscribe();
+
+    }catch(error){
+
+        console.warn(
+            'Forum realtime error:',
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   MOJ DOCBIZHUB
+   ========================================================= */
+
+const DOCBIZ_MY_FUNCTIONS_KEY =
+    'docbizhub_my_functions_v1';
+
+
+const DOCBIZ_FUNCTIONS = [
+
+    {
+        id:'pokreni-biznis',
+        icon:'🚀',
+        title:'Pokreni biznis',
+        description:
+            'Vodiči i resursi za pokretanje poslovanja.',
+        url:'POKRENI_BIZNIS.html'
+    },
+
+    {
+        id:'grantovi',
+        icon:'💰',
+        title:'Grantovi & fondovi',
+        description:
+            'Grantovi, fondovi i finansiranje.',
+        url:'GRANTOVI.html'
+    },
+
+    {
+        id:'biznis-alati',
+        icon:'🧰',
+        title:'Biznis alati',
+        description:
+            'Alati za svakodnevno poslovanje.',
+        url:'BIZNIS_ALATI.html'
+    },
+
+    {
+        id:'poslovne-prilike',
+        icon:'💼',
+        title:'Poslovne prilike',
+        description:
+            'Poslovi, projekti i prilike.',
+        url:'POSAO_FORUM.html'
+    },
+
+    {
+        id:'edukacija',
+        icon:'🎓',
+        title:'Edukacija',
+        description:
+            'Kursevi i poslovno usavršavanje.',
+        url:'EDUKACIJA.html'
+    },
+
+    {
+        id:'jezici',
+        icon:'🌍',
+        title:'Učenje jezika',
+        description:
+            'Učenje jezika.',
+        url:'JEZICI.html'
+    },
+
+    {
+        id:'intervju',
+        icon:'🎙️',
+        title:'Intervjui',
+        description:
+            'Priprema za poslovne intervjue.',
+        url:'INTERVJU.html'
+    },
+
+    {
+        id:'ai',
+        icon:'🤖',
+        title:'AI alati',
+        description:
+            'AI asistenti i pametni alati.',
+        url:'AI_ASISTENT.html'
+    },
+
+    {
+        id:'networking',
+        icon:'👥',
+        title:'Poslovna mreža',
+        description:
+            'Povežite se sa drugim korisnicima.',
+        url:'NETWORKING.html'
+    },
+
+    {
+        id:'forum',
+        icon:'🗣️',
+        title:'Poslovni Forum',
+        description:
+            'Diskusije i razmjena iskustava.',
+        url:'FORUM.html'
+    },
+
+    {
+        id:'poruke',
+        icon:'💬',
+        title:'Chat',
+        description:
+            'Komunikacija sa korisnicima.',
+        url:'PORUKE.html'
+    },
+
+    {
+        id:'oglasi',
+        icon:'📢',
+        title:'Oglasi',
+        description:
+            'Poslovni oglasi.',
+        url:'OGLASI.html'
+    },
+
+    {
+        id:'profil',
+        icon:'👤',
+        title:'Moj profil',
+        description:
+            'Vaš poslovni profil.',
+        url:'PROFIL.html'
+    },
+
+    {
+        id:'pretraga',
+        icon:'🔎',
+        title:'Pretraga baze',
+        description:
+            'Firme, korisnici i resursi.',
+        url:'PRETRAGA.html'
+    },
+
+    {
+        id:'biznis-portal',
+        icon:'📰',
+        title:'Biznis portal',
+        description:
+            'Poslovne informacije.',
+        url:'BIZNIS_PORTAL.html'
+    },
+
+    {
+        id:'zabava',
+        icon:'🎉',
+        title:'Kutak za odmor',
+        description:
+            'Sadržaj za odmor.',
+        url:'ZABAVA.html'
+    },
+
+    {
+        id:'mailovi',
+        icon:'📧',
+        title:'Mailovi',
+        description:
+            'Mail generator i inbox.',
+        url:'MAILOVI.html'
+    },
+
+    {
+        id:'podrska',
+        icon:'📩',
+        title:'Podrška',
+        description:
+            'Kontakt sa DocBizHub timom.',
+        url:'KONTAKT.html'
+    }
+
+];
+
+
+const DOCBIZ_DEFAULT_FUNCTIONS = [
+
+    'grantovi',
+    'biznis-alati',
+    'pokreni-biznis',
+    'poslovne-prilike',
+
+    'edukacija',
+    'jezici',
+    'intervju',
+    'ai'
+
+];
+
+
+let docbizMyFunctions =
+    ucitajDocBizMyFunctions();
+
+
+function ucitajDocBizMyFunctions(){
+
+    try{
+
+        const saved =
+            localStorage.getItem(
+                DOCBIZ_MY_FUNCTIONS_KEY
+            );
+
+
+        if(!saved){
+
+            return [
+                ...DOCBIZ_DEFAULT_FUNCTIONS
+            ];
+
+        }
+
+
+        const parsed =
+            JSON.parse(
+                saved
+            );
+
+
+        if(
+            !Array.isArray(
+                parsed
+            )
+        ){
+
+            return [
+                ...DOCBIZ_DEFAULT_FUNCTIONS
+            ];
+
+        }
+
+
+        return parsed.filter(
+            id =>
+                DOCBIZ_FUNCTIONS.some(
+                    item =>
+                        item.id === id
+                )
+        );
+
+
+    }catch(error){
+
+        console.warn(
+            'Moj DocBizHub:',
+            error
+        );
+
+
+        return [
+            ...DOCBIZ_DEFAULT_FUNCTIONS
+        ];
+
+    }
+
+}
+
+
+function sacuvajDocBizMyFunctions(){
+
+    localStorage.setItem(
+        DOCBIZ_MY_FUNCTIONS_KEY,
+        JSON.stringify(
+            docbizMyFunctions
+        )
+    );
+
+}
+
+
+function pronadjiDocBizFunction(
+    id
+){
+
+    return DOCBIZ_FUNCTIONS.find(
+        item =>
+            item.id === id
+    );
+
+}
+
+
+function escapeDocBizText(
+    text
+){
+
+    const div =
+        document.createElement(
+            'div'
+        );
+
+
+    div.textContent =
+        String(
+            text || ''
+        );
+
+
+    return div.innerHTML;
+
+}
+
+
+function prikaziMojDocBizHub(){
+
+    const grid =
+        document.getElementById(
+            'myDashboardGrid'
+        );
+
+
+    if(!grid){
+        return;
+    }
+
+
+    if(
+        docbizMyFunctions.length
+        ===
+        0
+    ){
+
+        grid.innerHTML = `
+
+            <div class="my-empty-dashboard">
+
+                <strong>
+                    ⭐ Vaš raspored je prazan
+                </strong>
+
+                Kliknite na
+                <strong>
+                    Dodaj funkciju
+                </strong>
+                i izaberite šta želite koristiti.
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    grid.innerHTML =
+        docbizMyFunctions
+            .map(
+                (
+                    id,
+                    index
+                ) => {
+
+                    const item =
+                        pronadjiDocBizFunction(
+                            id
+                        );
+
+
+                    if(!item){
+                        return '';
+                    }
+
+
+                    return `
+
+                        <div
+                            class="my-function-card"
+                            draggable="true"
+                            data-id="${escapeDocBizText(item.id)}">
+
+                            <button
+                                class="my-function-move"
+                                onclick="pomjeriDocBizFunction(${index})"
+                                title="Pomjeri">
+
+                                ↕️
+
+                            </button>
+
+
+                            <button
+                                class="my-function-remove"
+                                onclick="ukloniDocBizFunction('${escapeDocBizText(item.id)}')"
+                                title="Ukloni">
+
+                                ✕
+
+                            </button>
+
+
+                            <div class="my-function-icon">
+                                ${item.icon}
+                            </div>
+
+
+                            <h3>
+                                ${escapeDocBizText(item.title)}
+                            </h3>
+
+
+                            <p>
+                                ${escapeDocBizText(item.description)}
+                            </p>
+
+
+                            <a
+                                href="${escapeDocBizText(item.url)}"
+                                class="my-function-open">
+
+                                Otvori →
+
+                            </a>
+
+                        </div>
+
+                    `;
+
+                }
+            )
+            .join('');
+
+
+    aktivirajDocBizDragDrop();
+
+}
+
+
+function otvoriMojeFunkcije(){
+
+    prikaziDostupneDocBizFunkcije();
+
+
+    const modal =
+        document.getElementById(
+            'myFunctionsModal'
+        );
+
+
+    if(modal){
+
+        modal.classList.add(
+            'active'
+        );
+
+    }
+
+}
+
+
+function zatvoriMojeFunkcije(){
+
+    const modal =
+        document.getElementById(
+            'myFunctionsModal'
+        );
+
+
+    if(modal){
+
+        modal.classList.remove(
+            'active'
+        );
+
+    }
+
+}
+
+
+function prikaziDostupneDocBizFunkcije(){
+
+    const box =
+        document.getElementById(
+            'availableFunctions'
+        );
+
+
+    if(!box){
+        return;
+    }
+
+
+    box.innerHTML =
+        DOCBIZ_FUNCTIONS
+            .map(
+                item => {
+
+                    const selected =
+                        docbizMyFunctions
+                            .includes(
+                                item.id
+                            );
+
+
+                    return `
+
+                        <button
+                            type="button"
+                            class="available-function ${selected ? 'selected' : ''}"
+                            onclick="toggleDocBizFunction('${escapeDocBizText(item.id)}')">
+
+                            <div class="available-function-icon">
+                                ${item.icon}
+                            </div>
+
+                            <strong>
+                                ${escapeDocBizText(item.title)}
+                            </strong>
+
+                            <small>
+                                ${escapeDocBizText(item.description)}
+                            </small>
+
+                        </button>
+
+                    `;
+
+                }
+            )
+            .join('');
+
+}
+
+
+function toggleDocBizFunction(
+    id
+){
+
+    const index =
+        docbizMyFunctions.indexOf(
+            id
+        );
+
+
+    if(index === -1){
+
+        docbizMyFunctions.push(
+            id
+        );
+
+    }else{
+
+        docbizMyFunctions.splice(
+            index,
+            1
+        );
+
+    }
+
+
+    sacuvajDocBizMyFunctions();
+
+    prikaziMojDocBizHub();
+
+    prikaziDostupneDocBizFunkcije();
+
+}
+
+
+function ukloniDocBizFunction(
+    id
+){
+
+    docbizMyFunctions =
+        docbizMyFunctions.filter(
+            item =>
+                item !== id
+        );
+
+
+    sacuvajDocBizMyFunctions();
+
+    prikaziMojDocBizHub();
+
+    prikaziDostupneDocBizFunkcije();
+
+}
+
+
+function pomjeriDocBizFunction(
+    index
+){
+
+    if(
+        index <= 0
+    ){
+
+        return;
+
+    }
+
+
+    const temp =
+        docbizMyFunctions[
+            index - 1
+        ];
+
+
+    docbizMyFunctions[
+        index - 1
+    ] =
+        docbizMyFunctions[
+            index
+        ];
+
+
+    docbizMyFunctions[
+        index
+    ] =
+        temp;
+
+
+    sacuvajDocBizMyFunctions();
+
+    prikaziMojDocBizHub();
+
+}
+
+
+function resetujMojeFunkcije(){
+
+    if(
+        !confirm(
+            'Želite li vratiti početni raspored funkcija?'
+        )
+    ){
+
+        return;
+
+    }
+
+
+    docbizMyFunctions =
+        [
+            ...DOCBIZ_DEFAULT_FUNCTIONS
+        ];
+
+
+    sacuvajDocBizMyFunctions();
+
+    prikaziMojDocBizHub();
+
+    prikaziDostupneDocBizFunkcije();
+
+}
+
+
+function aktivirajDocBizDragDrop(){
+
+    const cards =
+        document.querySelectorAll(
+            '.my-function-card'
+        );
+
+
+    cards.forEach(
+        card => {
+
+            card.addEventListener(
+                'dragstart',
+                function(){
+
+                    card.classList.add(
+                        'docbiz-dragging'
+                    );
+
+                }
+            );
+
+
+            card.addEventListener(
+                'dragend',
+                function(){
+
+                    card.classList.remove(
+                        'docbiz-dragging'
+                    );
+
+                }
+            );
+
+
+            card.addEventListener(
+                'dragover',
+                function(event){
+
+                    event.preventDefault();
+
+                }
+            );
+
+
+            card.addEventListener(
+                'drop',
+                function(event){
+
+                    event.preventDefault();
+
+
+                    const dragged =
+                        document.querySelector(
+                            '.docbiz-dragging'
+                        );
+
+
+                    if(!dragged){
+                        return;
+                    }
+
+
+                    const fromId =
+                        dragged.dataset.id;
+
+
+                    const toId =
+                        card.dataset.id;
+
+
+                    if(
+                        !fromId
+                        ||
+                        !toId
+                        ||
+                        fromId === toId
+                    ){
+
+                        return;
+
+                    }
+
+
+                    const fromIndex =
+                        docbizMyFunctions
+                            .indexOf(
+                                fromId
+                            );
+
+
+                    const toIndex =
+                        docbizMyFunctions
+                            .indexOf(
+                                toId
+                            );
+
+
+                    if(
+                        fromIndex < 0
+                        ||
+                        toIndex < 0
+                    ){
+
+                        return;
+
+                    }
+
+
+                    const moved =
+                        docbizMyFunctions
+                            .splice(
+                                fromIndex,
+                                1
+                            )[0];
+
+
+                    docbizMyFunctions
+                        .splice(
+                            toIndex,
+                            0,
+                            moved
+                        );
+
+
+                    sacuvajDocBizMyFunctions();
+
+                    prikaziMojDocBizHub();
+
+                }
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   MOJ DOCBIZHUB MODAL
+   ========================================================= */
+
+window.addEventListener(
+    'click',
+    function(event){
+
+        const modal =
+            document.getElementById(
+                'myFunctionsModal'
+            );
+
+
+        if(
+            modal
+            &&
+            event.target === modal
+        ){
+
+            zatvoriMojeFunkcije();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   DOCBIZ AI
+   ========================================================= */
+
+function otvoriDocBizAI(){
+
+    const ai =
+        document.getElementById(
+            'docbiz-ai'
+        );
+
+
+    if(ai){
+
+        ai.classList.toggle(
+            'open'
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   DOM READY
+   ========================================================= */
+
+document.addEventListener(
+    'DOMContentLoaded',
+    function(){
+
+        prikaziMojDocBizHub();
+
+        ucitajProfilKorisnika();
+
+        pokreniAdminNotifikacije();
+
+        pokreniForumNotifikacije();
+
+    }
+);
+
+</script>
+
+
+<!-- =========================================================
+     POSTOJEĆI DOCBIZ AI SCRIPT
+     ========================================================= -->
+
+<script src="js/docbiz-ai.js"></script>
+
+
+</body>
+</html>
